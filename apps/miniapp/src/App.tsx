@@ -1,9 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { HeartPulse, UserRound, UsersRound, TrendingUp, Pill, Syringe, BookOpen, Thermometer, Activity, Weight, ClipboardList, Plus, ChevronRight, Bell, X, ShieldCheck } from 'lucide-react'
 import './App.css'
+import { supabase } from './lib/supabase'
+
+
 
 type Tab = 'Профіль' | 'Здоров’я' | 'Ліки' | 'Щеплення' | 'Довідник'
 type Action = 'Температура' | 'Тиск' | 'Симптом' | 'Вага'
+type TelegramUser = {
+  telegram_id: string
+  first_name: string | null
+  last_name: string | null
+  username: string | null
+  photo_url: string | null
+}
 
 const actions = [
   { title: 'Температура' as Action, subtitle: 'Записати показник', icon: Thermometer },
@@ -13,6 +23,13 @@ const actions = [
 ]
 
 function App() {
+  console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL)
+  console.log('Supabase client:', supabase ? 'Підключений' : 'Не підключений')
+
+  const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null)
+  const [authStatus, setAuthStatus] = useState('Перевірка Telegram...')
+  const [authError, setAuthError] = useState('')
+
   const [tab, setTab] = useState<Tab>('Профіль')
   const [person, setPerson] = useState('Мій профіль')
   const [modal, setModal] = useState<Action | 'Додати профіль' | null>(null)
@@ -22,6 +39,70 @@ function App() {
   const [family, setFamily] = useState<string[]>([])
   const [records, setRecords] = useState<{ person: string; type: Action; value: string; note: string; date: string }[]>([])
   const personRecords = records.filter((record) => record.person === person)
+
+  useEffect(() => {
+    let cancelled = false
+
+   const authenticateTelegram = async () => {
+  try {
+    const telegram = (window as any).Telegram?.WebApp
+
+    if (!telegram) {
+      throw new Error('Telegram WebApp API не знайдено')
+    }
+
+    telegram.ready()
+    telegram.expand()
+
+    const initData = telegram.initData
+
+    if (!initData) {
+      setAuthStatus('Відкрийте застосунок через Telegram')
+      return
+    }
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-auth`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ initData }),
+          }
+        )
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Помилка авторизації')
+        }
+
+        if (!cancelled) {
+          setTelegramUser(result.user)
+          setAuthStatus('Telegram підтверджено')
+          setAuthError('')
+        }
+      } catch (error) {
+        console.error('Telegram auth error:', error)
+
+        if (!cancelled) {
+          setAuthStatus('Не вдалося авторизуватися')
+          setAuthError(
+            error instanceof Error ? error.message : 'Невідома помилка'
+          )
+        }
+      }
+    }
+
+    authenticateTelegram()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
 
   const saveRecord = () => {
     if (!value.trim() || !actions.some((a) => a.title === modal)) return
