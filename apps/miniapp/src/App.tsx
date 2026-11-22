@@ -127,11 +127,49 @@ function App() {
       <button className="icon-button" aria-label="Сповіщення"><Bell size={19}/></button>
     </header>
 
-    <section className="profile-banner">
-      <div className="profile-avatar"><UserRound size={25}/></div>
-      <div className="profile-info"><strong>Особистий профіль</strong><span>Ваш обліковий запис Telegram</span><small><ShieldCheck size={13}/> Ім’я та фото отримаємо після підключення Telegram</small></div>
-      <ChevronRight size={20}/>
-    </section>
+<section className="profile-banner">
+  <div className="profile-avatar">
+    {telegramUser?.photo_url ? (
+      <img
+        src={telegramUser.photo_url}
+        alt="Фото профілю"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          borderRadius: '50%',
+        }}
+      />
+    ) : (
+      <UserRound size={25} />
+    )}
+  </div>
+
+  <div className="profile-info">
+    <strong>
+      {telegramUser
+        ? [telegramUser.first_name, telegramUser.last_name]
+            .filter(Boolean)
+            .join(' ')
+        : 'Особистий профіль'}
+    </strong>
+
+    <span>
+      {telegramUser?.username
+        ? `@${telegramUser.username}`
+        : 'Ваш обліковий запис Telegram'}
+    </span>
+
+    <small>
+      <ShieldCheck size={13} />
+      {authStatus}
+    </small>
+
+    {authError && <small>{authError}</small>}
+  </div>
+
+  <ChevronRight size={20} />
+</section>
 
     <section className="section">
       <div className="section-head"><div><h2>Мої діти</h2><p>Додавайте окремі профілі дітей</p></div><button className="text-button" onClick={() => setModal('Додати профіль')}><Plus size={15}/> Додати</button></div>
